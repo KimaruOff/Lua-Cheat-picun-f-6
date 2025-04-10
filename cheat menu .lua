@@ -429,7 +429,7 @@ local flyKeys = {
 }
 
 local function flyLoop()
-    if noclipEnabled and flyEnabled and LocalPlayer.Character then
+    if flyEnabled and LocalPlayer.Character then
         local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then
             local camCF = Camera.CFrame
@@ -448,10 +448,12 @@ local function flyLoop()
             else
                 root.Velocity = Vector3.new()
                 root.AssemblyLinearVelocity = Vector3.new()
+                root.Velocity = root.Velocity + Vector3.new(0, 6.15, 0)
             end
         end
     end
 end
+
 
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Insert then
