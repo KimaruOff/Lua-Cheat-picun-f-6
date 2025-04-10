@@ -8,16 +8,22 @@ local ESPEnabled = true
 local showBoxes = true
 local showNames = true
 local showDistance = true
+local showTracers = true
+local showHitboxes = true
 local speedHackEnabled = false
 local Rotatespeed = 60
 local speedMultiplier = 2
 local spinBotEnabled = false
 local infiniteJumpEnabled = false
+local noclipEnabled = false
+local flyEnabled = false
 local menuVisible = true
 
 local boxColor = Color3.fromRGB(255, 255, 255)
 local nameColor = Color3.fromRGB(255, 255, 255)
 local distColor = Color3.fromRGB(0, 255, 255)
+local tracerColor = Color3.fromRGB(255, 255, 255)
+local hitboxColor = Color3.fromRGB(255, 0, 0)
 
 local colorPalette = {
     Color3.fromRGB(255,255,255), Color3.fromRGB(255,0,0),
@@ -28,17 +34,28 @@ local colorPalette = {
 }
 
 local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-gui.Name = "UnifiedMenu"
+gui.Name = "Cheat by Kimaru"
 gui.DisplayOrder = 999
 gui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame", gui)
 mainFrame.Position = UDim2.new(0, 10, 0.5, -150)
-mainFrame.Size = UDim2.new(0, 220, 0, 350)
+mainFrame.Size = UDim2.new(0, 400, 0, 430)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = menuVisible
+mainFrame.Active = true
+mainFrame.Draggable = true
 
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, -30)
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+title.Text = "Cheat by Kimaru (my username in tg: @IlIlIlIIlIlIlIlIIllIIIllIIllIIlI) "
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.ZIndex = 2
 local currentTab = "Main"
 
 local mainContent = Instance.new("Frame", mainFrame)
@@ -192,14 +209,19 @@ local infiniteJumpBtn = createToggleButton(mainContent, "Infinite Jump", 125, in
     infiniteJumpEnabled = value
 end)
 
-local rotateSlider = createSlider(mainContent, "Spin Speed", 160, 1, 360, Rotatespeed, function(value)
+local noclipBtn = createToggleButton(mainContent, "Noclip & Fly", 160, noclipEnabled, function(value)
+    noclipEnabled = value
+    flyEnabled = value
+end)
+
+local rotateSlider = createSlider(mainContent, "Spin Speed", 195, 1, 360, Rotatespeed, function(value)
     Rotatespeed = value
 end)
 
-createLabel(mainContent, "Teleport to Player:", 215)
+createLabel(mainContent, "Teleport to Player:", 250)
 local playerNameInput = Instance.new("TextBox", mainContent)
 playerNameInput.Size = UDim2.new(1, -10, 0, 25)
-playerNameInput.Position = UDim2.new(0, 5, 0, 235)
+playerNameInput.Position = UDim2.new(0, 5, 0, 270)
 playerNameInput.PlaceholderText = "Player Name"
 playerNameInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 playerNameInput.TextColor3 = Color3.new(1, 1, 1)
@@ -209,7 +231,7 @@ playerNameInput.BorderSizePixel = 0
 
 local teleportBtn = Instance.new("TextButton", mainContent)
 teleportBtn.Size = UDim2.new(1, -10, 0, 25)
-teleportBtn.Position = UDim2.new(0, 5, 0, 265)
+teleportBtn.Position = UDim2.new(0, 5, 0, 300)
 teleportBtn.Text = "Teleport"
 teleportBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 teleportBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -230,9 +252,19 @@ teleportBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+local function clearESP()
+    for _, player in pairs(espObjects) do
+        if player.box then player.box:Remove() end
+        if player.name then player.name:Remove() end
+        if player.dist then player.dist:Remove() end
+        if player.tracer then player.tracer:Remove() end
+    end
+    espObjects = {}
+end
+
 local closeBtn = Instance.new("TextButton", mainContent)
 closeBtn.Size = UDim2.new(1, -10, 0, 25)
-closeBtn.Position = UDim2.new(0, 5, 0, 295)
+closeBtn.Position = UDim2.new(0, 5, 0, 330)
 closeBtn.Text = "Close Menu"
 closeBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -248,6 +280,10 @@ closeBtn.MouseButton1Click:Connect(function()
     speedHackEnabled = false
     spinBotEnabled = false
     infiniteJumpEnabled = false
+    noclipEnabled = false
+    flyEnabled = false
+    
+    clearESP()
     
     espBtn.Text = "ESP: OFF"
     espBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
@@ -257,20 +293,20 @@ closeBtn.MouseButton1Click:Connect(function()
     spinBotBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
     infiniteJumpBtn.Text = "Infinite Jump: OFF"
     infiniteJumpBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    
-    for _, player in pairs(espObjects) do
-        for _, obj in pairs(player) do
-            obj.Visible = false
-        end
-    end
+    noclipBtn.Text = "Noclip & Fly: OFF"
+    noclipBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 end)
 
 local espBtn = createToggleButton(visualsContent, "ESP", 0, ESPEnabled, function(value)
     ESPEnabled = value
     if not value then
-        for _, player in pairs(espObjects) do
-            for _, obj in pairs(player) do
-                obj.Visible = false
+        clearESP()
+    else
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if not espObjects[player] then
+                    createESP(player)
+                end
             end
         end
     end
@@ -286,6 +322,14 @@ end)
 
 local distBtn = createToggleButton(visualsContent, "Distance", 105, showDistance, function(value)
     showDistance = value
+end)
+
+local tracersBtn = createToggleButton(visualsContent, "Tracers", 140, showTracers, function(value)
+    showTracers = value
+end)
+
+local hitboxesBtn = createToggleButton(visualsContent, "Hitboxes", 175, showHitboxes, function(value)
+    showHitboxes = value
 end)
 
 local function createColorOption(parent, name, posY, colorVar, callback)
@@ -344,28 +388,88 @@ local function createColorOption(parent, name, posY, colorVar, callback)
     return colorPreview
 end
 
-local boxColorPreview = createColorOption(visualsContent, "Box Color", 140, boxColor, function(color)
+local boxColorPreview = createColorOption(visualsContent, "Box Color", 210, boxColor, function(color)
     boxColor = color
 end)
 
-local nameColorPreview = createColorOption(visualsContent, "Name Color", 175, nameColor, function(color)
+local nameColorPreview = createColorOption(visualsContent, "Name Color", 245, nameColor, function(color)
     nameColor = color
 end)
 
-local distColorPreview = createColorOption(visualsContent, "Distance Color", 210, distColor, function(color)
+local distColorPreview = createColorOption(visualsContent, "Distance Color", 280, distColor, function(color)
     distColor = color
 end)
+
+local tracerColorPreview = createColorOption(visualsContent, "Tracer Color", 315, tracerColor, function(color)
+    tracerColor = color
+end)
+
+local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 350, hitboxColor, function(color)
+    hitboxColor = color
+end)
+
+local function noclipLoop()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+local flySpeed = 50
+local flyKeys = {
+    [Enum.KeyCode.W] = Vector3.new(0, 0, -1),
+    [Enum.KeyCode.S] = Vector3.new(0, 0, 1),
+    [Enum.KeyCode.A] = Vector3.new(-1, 0, 0),
+    [Enum.KeyCode.D] = Vector3.new(1, 0, 0),
+    [Enum.KeyCode.Space] = Vector3.new(0, 1, 0),
+    [Enum.KeyCode.LeftShift] = Vector3.new(0, -1, 0)
+}
+
+local function flyLoop()
+    if noclipEnabled and flyEnabled and LocalPlayer.Character then
+        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local camCF = Camera.CFrame
+            local moveVector = Vector3.new()
+            
+            for key, vector in pairs(flyKeys) do
+                if UserInputService:IsKeyDown(key) then
+                    moveVector = moveVector + vector
+                end
+            end
+            
+            if moveVector.Magnitude > 0 then
+                moveVector = camCF:VectorToWorldSpace(moveVector).Unit * flySpeed
+                root.Velocity = moveVector
+                root.AssemblyLinearVelocity = moveVector
+            else
+                root.Velocity = Vector3.new()
+                root.AssemblyLinearVelocity = Vector3.new()
+            end
+        end
+    end
+end
 
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Insert then
         menuVisible = not menuVisible
         mainFrame.Visible = menuVisible
         paletteFrame.Visible = false
+        
+        if not menuVisible then
+            clearESP()
+            ESPEnabled = false
+            espBtn.Text = "ESP: OFF"
+            espBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        end
     end
     
     if input.KeyCode == Enum.KeyCode.Space and infiniteJumpEnabled then
         local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        if humanoid then
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
@@ -392,26 +496,81 @@ local function createESP(player)
     distText.Outline = true
     distText.Visible = false
 
-    espObjects[player] = {box = box, name = nameText, dist = distText}
+    local tracer = Drawing.new("Line")
+    tracer.Visible = false
+    tracer.Thickness = 1
+
+    espObjects[player] = {box = box, name = nameText, dist = distText, tracer = tracer}
 end
 
 local function removeESP(player)
     if espObjects[player] then
-        for _, obj in pairs(espObjects[player]) do
-            obj:Remove()
-        end
+        if espObjects[player].box then espObjects[player].box:Remove() end
+        if espObjects[player].name then espObjects[player].name:Remove() end
+        if espObjects[player].dist then espObjects[player].dist:Remove() end
+        if espObjects[player].tracer then espObjects[player].tracer:Remove() end
         espObjects[player] = nil
+    end
+end
+
+local hitboxParts = {}
+
+local function createHitbox(player)
+    if player == LocalPlayer then return end
+    local character = player.Character
+    if not character then return end
+    
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and not hitboxParts[part] then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = "ESP_Hitbox"
+            box.Adornee = part
+            box.AlwaysOnTop = true
+            box.ZIndex = 10
+            box.Size = part.Size
+            box.Transparency = 0.7
+            box.Color3 = hitboxColor
+            box.Parent = part
+            hitboxParts[part] = box
+        end
+    end
+end
+
+local function removeHitbox(player)
+    if player.Character then
+        for _, part in ipairs(player.Character:GetDescendants()) do
+            if hitboxParts[part] then
+                hitboxParts[part]:Destroy()
+                hitboxParts[part] = nil
+            end
+        end
     end
 end
 
 for _, player in ipairs(Players:GetPlayers()) do
     createESP(player)
+    if showHitboxes then
+        createHitbox(player)
+    end
 end
-Players.PlayerAdded:Connect(createESP)
-Players.PlayerRemoving:Connect(removeESP)
+
+Players.PlayerAdded:Connect(function(player)
+    createESP(player)
+    if showHitboxes then
+        createHitbox(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+    removeHitbox(player)
+end)
 
 local humanoid
-RunService.RenderStepped:Connect(function()
+RunService.Stepped:Connect(function()
+    noclipLoop()
+    flyLoop()
+    
     if speedHackEnabled and LocalPlayer.Character then
         humanoid = humanoid or LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
@@ -428,17 +587,24 @@ RunService.RenderStepped:Connect(function()
         end
     end
     
-    if menuVisible and ESPEnabled then
+    if ESPEnabled then
         for player, esp in pairs(espObjects) do
             local character = player.Character
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            
+            if showHitboxes then
+                createHitbox(player)
+            else
+                removeHitbox(player)
+            end
+            
             if hrp and humanoid and humanoid.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
                 if onScreen then
                     local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
                     local scale = 1 / distance * 100
-                    local width, height = 35 * scale, 60 * scale
+                    local width, height = 25 * scale, 30 * scale
 
                     esp.box.Visible = showBoxes
                     esp.box.Color = boxColor
@@ -454,16 +620,43 @@ RunService.RenderStepped:Connect(function()
                     esp.dist.Color = distColor
                     esp.dist.Text = tostring(math.floor(distance)) .. "m"
                     esp.dist.Position = Vector2.new(pos.X, pos.Y + height/2 + 5)
+
+                    if showTracers then
+                        esp.tracer.Visible = true
+                        esp.tracer.Color = tracerColor
+                        esp.tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+                        esp.tracer.To = Vector2.new(pos.X, pos.Y + height/2)
+                    else
+                        esp.tracer.Visible = false
+                    end
                 else
                     esp.box.Visible = false
                     esp.name.Visible = false
                     esp.dist.Visible = false
+                    esp.tracer.Visible = false
                 end
             else
                 esp.box.Visible = false
                 esp.name.Visible = false
                 esp.dist.Visible = false
+                esp.tracer.Visible = false
             end
+        end
+    else
+        for _, esp in pairs(espObjects) do
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.dist.Visible = false
+            esp.tracer.Visible = false
+        end
+    end
+    
+    for part, box in pairs(hitboxParts) do
+        if part.Parent and showHitboxes and ESPEnabled then
+            box.Visible = true
+            box.Color3 = hitboxColor
+        else
+            box.Visible = false
         end
     end
 end)
