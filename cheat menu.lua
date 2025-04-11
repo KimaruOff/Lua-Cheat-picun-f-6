@@ -259,7 +259,7 @@ local function createSlider(parent, name, posY, min, max, value, callback)
     return slider
 end
 
-local speedSlider = createSlider(mainContent, "Speed Multiplier", 0, 1, 10, speedMultiplier, function(value)
+local speedSlider = createSlider(mainContent, "Speed Multiplier", 0, 1, 1000, speedMultiplier, function(value)
     speedMultiplier = value
 end)
 
