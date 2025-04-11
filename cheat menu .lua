@@ -1,15 +1,18 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
 local ESPEnabled = true
 local showBoxes = true
 local showNames = true
 local showDistance = true
 local showTracers = true
-local showHitboxes = true
+local showHitboxes = false
 local speedHackEnabled = false
 local Rotatespeed = 60
 local speedMultiplier = 2
@@ -18,12 +21,25 @@ local infiniteJumpEnabled = false
 local noclipEnabled = false
 local flyEnabled = false
 local menuVisible = true
-
+local aimbotEnabled = false
+local aimbotKey = Enum.KeyCode.LeftShift
+local aimbotMode = "Mouse"
+local aimbotFOV = 50
+local aimbotSmoothness = 10
+local aimbotPart = "Head"
+local aimbotVisible = true
 local boxColor = Color3.fromRGB(255, 255, 255)
 local nameColor = Color3.fromRGB(255, 255, 255)
 local distColor = Color3.fromRGB(0, 255, 255)
 local tracerColor = Color3.fromRGB(255, 255, 255)
 local hitboxColor = Color3.fromRGB(255, 0, 0)
+local onePressMode = false
+local triggerBotEnabled = false
+local triggerBotKey = Enum.KeyCode.RightControl
+local triggerBotDelay = 0.1
+local aimbotActive = false
+local lastTriggerTime = 0
+local maxESPDistance = 1000
 
 local colorPalette = {
     Color3.fromRGB(255,255,255), Color3.fromRGB(255,0,0),
@@ -47,15 +63,32 @@ mainFrame.Visible = menuVisible
 mainFrame.Active = true
 mainFrame.Draggable = true
 
-local title = Instance.new("TextLabel", mainFrame)
+local title = Instance.new("Frame", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Position = UDim2.new(0, 0, 0, -30)
 title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-title.Text = "Cheat by Kimaru (my username in tg: @IlIlIlIIlIlIlIlIIllIIIllIIllIIlI) "
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
-title.ZIndex = 2
+title.BorderSizePixel = 0
+
+local titleText = Instance.new("TextLabel", title)
+titleText.Size = UDim2.new(1, -30, 1, 0)
+titleText.Position = UDim2.new(0, 0, 0, 0)
+titleText.Text = "Cheat by Kimaru"
+titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleText.Font = Enum.Font.SourceSansBold
+titleText.TextSize = 18
+titleText.BackgroundTransparency = 1
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+
+local closeButton = Instance.new("TextButton", title)
+closeButton.Size = UDim2.new(0, 30, 1, 0)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 18
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.BorderSizePixel = 0
+
 local currentTab = "Main"
 
 local mainContent = Instance.new("Frame", mainFrame)
@@ -69,21 +102,51 @@ visualsContent.Size = UDim2.new(1, 0, 1, -30)
 visualsContent.BackgroundTransparency = 1
 visualsContent.Visible = false
 
+local aimbotContent = Instance.new("Frame", mainFrame)
+aimbotContent.Position = UDim2.new(0, 0, 0, 30)
+aimbotContent.Size = UDim2.new(1, 0, 1, -30)
+aimbotContent.BackgroundTransparency = 1
+aimbotContent.Visible = false
+
+local function tweenButton(button)
+    local originalSize = button.Size
+    local originalPos = button.Position
+    local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    button.MouseEnter:Connect(function()
+        local tween = TweenService:Create(button, tweenInfo, {
+            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 5, originalSize.Y.Scale, originalSize.Y.Offset),
+            Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset - 2.5, originalPos.Y.Scale, originalPos.Y.Offset)
+        })
+        tween:Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        local tween = TweenService:Create(button, tweenInfo, {
+            Size = originalSize,
+            Position = originalPos
+        })
+        tween:Play()
+    end)
+end
+
 local function createTabButton(name, index)
     local btn = Instance.new("TextButton", mainFrame)
-    btn.Size = UDim2.new(0.5, 0, 0, 30)
-    btn.Position = UDim2.new((index-1)*0.5, 0, 0, 0)
+    btn.Size = UDim2.new(0.33, -2, 0, 30)
+    btn.Position = UDim2.new((index-1)*0.33, 1, 0, 0)
     btn.Text = name
     btn.BackgroundColor3 = currentTab == name and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(30, 30, 30)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSansBold
     btn.TextSize = 14
     btn.BorderSizePixel = 0
+    tweenButton(btn)
     
     btn.MouseButton1Click:Connect(function()
         currentTab = name
         mainContent.Visible = name == "Main"
         visualsContent.Visible = name == "Visuals"
+        aimbotContent.Visible = name == "Aimbot"
         for _, child in ipairs(mainFrame:GetChildren()) do
             if child:IsA("TextButton") and child ~= btn then
                 child.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -97,6 +160,7 @@ end
 
 local mainTabBtn = createTabButton("Main", 1)
 local visualsTabBtn = createTabButton("Visuals", 2)
+local aimbotTabBtn = createTabButton("Aimbot", 3)
 
 local paletteFrame = Instance.new("Frame", gui)
 paletteFrame.Position = UDim2.new(0, 240, 0.5, -150)
@@ -142,6 +206,7 @@ local function createToggleButton(parent, name, posY, value, callback)
     btn.Font = Enum.Font.SourceSans
     btn.TextSize = 14
     btn.BorderSizePixel = 0
+    tweenButton(btn)
     
     btn.MouseButton1Click:Connect(function()
         value = not value
@@ -178,6 +243,7 @@ local function createSlider(parent, name, posY, min, max, value, callback)
     slider.Font = Enum.Font.SourceSans
     slider.TextSize = 14
     slider.BorderSizePixel = 0
+    tweenButton(slider)
     
     slider.FocusLost:Connect(function()
         local num = tonumber(slider.Text)
@@ -218,6 +284,10 @@ local rotateSlider = createSlider(mainContent, "Spin Speed", 195, 1, 360, Rotate
     Rotatespeed = value
 end)
 
+local distanceSlider = createSlider(visualsContent, "Max ESP Distance", 385, 0, 1000, maxESPDistance, function(value)
+    maxESPDistance = value
+end)
+
 createLabel(mainContent, "Teleport to Player:", 250)
 local playerNameInput = Instance.new("TextBox", mainContent)
 playerNameInput.Size = UDim2.new(1, -10, 0, 25)
@@ -228,6 +298,7 @@ playerNameInput.TextColor3 = Color3.new(1, 1, 1)
 playerNameInput.Font = Enum.Font.SourceSans
 playerNameInput.TextSize = 14
 playerNameInput.BorderSizePixel = 0
+tweenButton(playerNameInput)
 
 local teleportBtn = Instance.new("TextButton", mainContent)
 teleportBtn.Size = UDim2.new(1, -10, 0, 25)
@@ -238,6 +309,8 @@ teleportBtn.TextColor3 = Color3.new(1, 1, 1)
 teleportBtn.Font = Enum.Font.SourceSans
 teleportBtn.TextSize = 14
 teleportBtn.BorderSizePixel = 0
+tweenButton(teleportBtn)
+
 teleportBtn.MouseButton1Click:Connect(function()
     local targetName = playerNameInput.Text
     for _, player in ipairs(Players:GetPlayers()) do
@@ -262,39 +335,35 @@ local function clearESP()
     espObjects = {}
 end
 
-local closeBtn = Instance.new("TextButton", mainContent)
-closeBtn.Size = UDim2.new(1, -10, 0, 25)
-closeBtn.Position = UDim2.new(0, 5, 0, 330)
-closeBtn.Text = "Close Menu"
-closeBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Font = Enum.Font.SourceSans
-closeBtn.TextSize = 14
-closeBtn.BorderSizePixel = 0
-closeBtn.MouseButton1Click:Connect(function()
-    menuVisible = false
-    mainFrame.Visible = false
-    paletteFrame.Visible = false
-    
+local function closeMenu()
+    gui:Destroy()
     ESPEnabled = false
     speedHackEnabled = false
     spinBotEnabled = false
     infiniteJumpEnabled = false
     noclipEnabled = false
     flyEnabled = false
+    aimbotEnabled = false
     
-    clearESP()
+    for _, player in pairs(espObjects) do
+        if player.box then player.box:Remove() end
+        if player.name then player.name:Remove() end
+        if player.dist then player.dist:Remove() end
+        if player.tracer then player.tracer:Remove() end
+    end
+    espObjects = {}
     
-    espBtn.Text = "ESP: OFF"
-    espBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    speedBtn.Text = "Speed Hack: OFF"
-    speedBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    spinBotBtn.Text = "Spin Bot: OFF"
-    spinBotBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    infiniteJumpBtn.Text = "Infinite Jump: OFF"
-    infiniteJumpBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    noclipBtn.Text = "Noclip & Fly: OFF"
-    noclipBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    for part, box in pairs(hitboxParts) do
+        if box then box:Destroy() end
+    end
+    hitboxParts = {}
+end
+
+closeButton.MouseButton1Click:Connect(function()
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.2), {Position = UDim2.new(0, -400, 0.5, -150)})
+    tween:Play()
+    tween.Completed:Wait()
+    closeMenu()
 end)
 
 local espBtn = createToggleButton(visualsContent, "ESP", 0, ESPEnabled, function(value)
@@ -347,6 +416,7 @@ local function createColorOption(parent, name, posY, colorVar, callback)
     btn.Font = Enum.Font.SourceSans
     btn.TextSize = 14
     btn.BorderSizePixel = 0
+    tweenButton(btn)
     
     local colorPreview = Instance.new("Frame", frame)
     colorPreview.Size = UDim2.new(0.25, 0, 1, 0)
@@ -371,6 +441,7 @@ local function createColorOption(parent, name, posY, colorVar, callback)
             colorBtn.BackgroundColor3 = color
             colorBtn.BorderSizePixel = 0
             colorBtn.Text = ""
+            tweenButton(colorBtn)
             
             if color == colorVar then
                 colorBtn.BorderSizePixel = 2
@@ -406,6 +477,264 @@ end)
 
 local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 350, hitboxColor, function(color)
     hitboxColor = color
+end)
+
+local function isPlayerVisible(player)
+    if not player or not player.Character then return false end
+    
+    local character = player.Character
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local head = character:FindFirstChild("Head")
+    
+    if not humanoid or humanoid.Health <= 0 or not head then return false end
+    
+    local cameraPos = Camera.CFrame.Position
+    local targetPos = head.Position
+    
+    if maxESPDistance > 0 and (targetPos - cameraPos).Magnitude > maxESPDistance then
+        return false
+    end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.IgnoreWater = true
+    
+    local raycastResult = workspace:Raycast(cameraPos, (targetPos - cameraPos).Unit * 1000, raycastParams)
+    
+    return not raycastResult
+end
+
+local function isMouseOverPlayer()
+    local target = Mouse.Target
+    if target and target.Parent then
+        local humanoid = target.Parent:FindFirstChildOfClass("Humanoid")
+        local player = Players:GetPlayerFromCharacter(target.Parent)
+        if humanoid and humanoid.Health > 0 and player and player ~= LocalPlayer then
+            return true
+        end
+    end
+    return false
+end
+
+local function triggerBot()
+    if not triggerBotEnabled or tick() - lastTriggerTime < triggerBotDelay then return end
+    
+    if isMouseOverPlayer() then
+        lastTriggerTime = tick()
+        local mousePos = UserInputService:GetMouseLocation()
+        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
+    end
+end
+
+local aimbotBtn = createToggleButton(aimbotContent, "Aimbot", 0, aimbotEnabled, function(value)
+    aimbotEnabled = value
+    fovCircle.Visible = aimbotEnabled and aimbotVisible
+end)
+
+local onePressBtn = createToggleButton(aimbotContent, "One-Press Mode", 35, onePressMode, function(value)
+    onePressMode = value
+end)
+
+local triggerBotBtn = createToggleButton(aimbotContent, "Trigger Bot", 70, triggerBotEnabled, function(value)
+    triggerBotEnabled = value
+end)
+
+local function createDropdown(parent, name, posY, options, current, callback)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(1, -10, 0, 50)
+    frame.Position = UDim2.new(0, 5, 0, posY)
+    frame.BackgroundTransparency = 1
+    
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 15)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = name
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local dropdown = Instance.new("TextButton", frame)
+    dropdown.Size = UDim2.new(1, 0, 0, 25)
+    dropdown.Position = UDim2.new(0, 0, 0, 20)
+    dropdown.Text = current
+    dropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdown.TextColor3 = Color3.new(1, 1, 1)
+    dropdown.Font = Enum.Font.SourceSans
+    dropdown.TextSize = 14
+    dropdown.BorderSizePixel = 0
+    tweenButton(dropdown)
+    
+    local dropdownFrame = Instance.new("Frame", gui)
+    dropdownFrame.Size = UDim2.new(0, 150, 0, math.min(#options * 25 + 5, 150))
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    dropdownFrame.BorderSizePixel = 1
+    dropdownFrame.BorderColor3 = Color3.new(0.5, 0.5, 0.5)
+    dropdownFrame.Visible = false
+    dropdownFrame.ZIndex = 1000
+    
+    local scroll = Instance.new("ScrollingFrame", dropdownFrame)
+    scroll.Size = UDim2.new(1, -5, 1, -5)
+    scroll.Position = UDim2.new(0, 5, 0, 5)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, #options * 25)
+    scroll.ScrollBarThickness = 5
+    scroll.BackgroundTransparency = 1
+    
+    local layout = Instance.new("UIListLayout", scroll)
+    layout.Padding = UDim.new(0, 0)
+    
+    dropdown.MouseButton1Click:Connect(function()
+        dropdownFrame.Visible = not dropdownFrame.Visible
+        
+        if dropdownFrame.Visible then
+            local buttonPos = dropdown.AbsolutePosition
+            local buttonSize = dropdown.AbsoluteSize
+            local frameSize = dropdownFrame.AbsoluteSize
+            
+            local viewportSize = workspace.CurrentCamera.ViewportSize
+            local yPos = buttonPos.Y + buttonSize.Y
+            
+            if yPos + frameSize.Y > viewportSize.Y then
+                yPos = buttonPos.Y - frameSize.Y
+            end
+            
+            dropdownFrame.Position = UDim2.new(0, buttonPos.X, 0, yPos)
+        end
+    end)
+    
+    for i, option in ipairs(options) do
+        local optionBtn = Instance.new("TextButton", scroll)
+        optionBtn.Size = UDim2.new(1, -5, 0, 25)
+        optionBtn.Position = UDim2.new(0, 0, 0, (i-1)*25)
+        optionBtn.Text = " " .. option
+        optionBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        optionBtn.TextColor3 = Color3.new(1, 1, 1)
+        optionBtn.Font = Enum.Font.SourceSans
+        optionBtn.TextSize = 14
+        optionBtn.TextXAlignment = Enum.TextXAlignment.Left
+        optionBtn.BorderSizePixel = 0
+        optionBtn.ZIndex = 1001
+        tweenButton(optionBtn)
+        
+        optionBtn.MouseButton1Click:Connect(function()
+            dropdown.Text = option
+            callback(option)
+            dropdownFrame.Visible = false
+        end)
+    end
+    
+    local function closeDropdown(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownFrame.Visible then
+            local mousePos = Vector2.new(input.Position.X, input.Position.Y)
+            local framePos = dropdownFrame.AbsolutePosition
+            local frameSize = dropdownFrame.AbsoluteSize
+            
+            local isInsideDropdown = 
+                mousePos.X >= framePos.X and 
+                mousePos.X <= framePos.X + frameSize.X and
+                mousePos.Y >= framePos.Y and 
+                mousePos.Y <= framePos.Y + frameSize.Y
+                
+            local isInsideButton = 
+                mousePos.X >= dropdown.AbsolutePosition.X and 
+                mousePos.X <= dropdown.AbsolutePosition.X + dropdown.AbsoluteSize.X and
+                mousePos.Y >= dropdown.AbsolutePosition.Y and 
+                mousePos.Y <= dropdown.AbsolutePosition.Y + dropdown.AbsoluteSize.Y
+            
+            if not isInsideDropdown and not isInsideButton then
+                dropdownFrame.Visible = false
+            end
+        end
+    end
+    
+    UserInputService.InputBegan:Connect(closeDropdown)
+    
+    return dropdown
+end
+
+local modeDropdown = createDropdown(aimbotContent, "Aimbot Mode", 105, {"Mouse", "Camera"}, aimbotMode, function(value)
+    aimbotMode = value
+end)
+
+local partDropdown = createDropdown(aimbotContent, "Aimbot Part", 160, {"Head", "HumanoidRootPart", "Torso"}, aimbotPart, function(value)
+    aimbotPart = value
+end)
+
+local fovSlider = createSlider(aimbotContent, "Aimbot FOV", 215, 1, 360, aimbotFOV, function(value)
+    aimbotFOV = value
+    updateFovCircle()
+end)
+
+local smoothSlider = createSlider(aimbotContent, "Aimbot Smoothness", 270, 1, 30, aimbotSmoothness, function(value)
+    aimbotSmoothness = value
+end)
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Thickness = 1
+fovCircle.Filled = false
+fovCircle.Transparency = 0.5
+
+local function updateFovCircle()
+    fovCircle.Visible = aimbotEnabled and aimbotVisible
+    fovCircle.Radius = aimbotFOV
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+end
+
+local fovToggleBtn = createToggleButton(aimbotContent, "Show FOV Circle", 325, aimbotVisible, function(value)
+    aimbotVisible = value
+    updateFovCircle()
+end)
+
+local keyInput = Instance.new("TextButton", aimbotContent)
+keyInput.Size = UDim2.new(1, -10, 0, 25)
+keyInput.Position = UDim2.new(0, 5, 0, 360)
+keyInput.Text = "Aimbot Key: LeftShift"
+keyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+keyInput.TextColor3 = Color3.new(1, 1, 1)
+keyInput.Font = Enum.Font.SourceSans
+keyInput.TextSize = 14
+keyInput.BorderSizePixel = 0
+tweenButton(keyInput)
+
+keyInput.MouseButton1Click:Connect(function()
+    keyInput.Text = "Press any key..."
+    local connection
+    connection = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            aimbotKey = input.KeyCode
+            keyInput.Text = "Aimbot Key: " .. tostring(input.KeyCode)
+            connection:Disconnect()
+        end
+    end)
+end)
+
+local triggerKeyInput = Instance.new("TextButton", aimbotContent)
+triggerKeyInput.Size = UDim2.new(1, -10, 0, 25)
+triggerKeyInput.Position = UDim2.new(0, 5, 0, 395)
+triggerKeyInput.Text = "Trigger Key: RightControl"
+triggerKeyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+triggerKeyInput.TextColor3 = Color3.new(1, 1, 1)
+triggerKeyInput.Font = Enum.Font.SourceSans
+triggerKeyInput.TextSize = 14
+triggerKeyInput.BorderSizePixel = 0
+tweenButton(triggerKeyInput)
+
+triggerKeyInput.MouseButton1Click:Connect(function()
+    triggerKeyInput.Text = "Press any key..."
+    local connection
+    connection = UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            triggerBotKey = input.KeyCode
+            triggerKeyInput.Text = "Trigger Key: " .. tostring(input.KeyCode)
+            connection:Disconnect()
+        end
+    end)
 end)
 
 local function noclipLoop()
@@ -454,11 +783,72 @@ local function flyLoop()
     end
 end
 
+local function findClosestPlayer()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local part = character:FindFirstChild(aimbotPart)
+            
+            if humanoid and humanoid.Health > 0 and part then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local screenPoint = Vector2.new(screenPos.X, screenPos.Y)
+                    local distance = (screenPoint - center).Magnitude
+                    
+                    if distance <= aimbotFOV then
+                        local realDistance = (part.Position - Camera.CFrame.Position).Magnitude
+                        if realDistance < closestDistance then
+                            closestDistance = realDistance
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+local function aimAt(target)
+    if not target or not target.Character then return end
+    
+    local part = target.Character:FindFirstChild(aimbotPart)
+    if not part then return end
+    
+    if aimbotMode == "Mouse" then
+        local screenPos = Camera:WorldToViewportPoint(part.Position)
+        local mouse = game:GetService("UserInputService"):GetMouseLocation()
+        local delta = Vector2.new(screenPos.X - mouse.X, screenPos.Y - mouse.Y)
+        mousemoverel(delta.X/aimbotSmoothness, delta.Y/aimbotSmoothness)
+    else
+        local camCF = Camera.CFrame
+        local targetPos = part.Position
+        local direction = (targetPos - camCF.Position).Unit
+        local smoothFactor = 1 / aimbotSmoothness
+        local newLook = camCF.LookVector:Lerp(direction, smoothFactor)
+        Camera.CFrame = CFrame.new(camCF.Position, camCF.Position + newLook)
+    end
+end
 
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Insert then
         menuVisible = not menuVisible
-        mainFrame.Visible = menuVisible
+        if menuVisible then
+            mainFrame.Visible = true
+            local tween = TweenService:Create(mainFrame, TweenInfo.new(0.2), {Position = UDim2.new(0, 10, 0.5, -150)})
+            tween:Play()
+        else
+            local tween = TweenService:Create(mainFrame, TweenInfo.new(0.2), {Position = UDim2.new(0, -400, 0.5, -150)})
+            tween:Play()
+            tween.Completed:Wait()
+            mainFrame.Visible = false
+        end
         paletteFrame.Visible = false
         
         if not menuVisible then
@@ -474,6 +864,23 @@ UserInputService.InputBegan:Connect(function(input)
         if humanoid then
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
+    end
+    
+    if input.KeyCode == aimbotKey and aimbotEnabled then
+        if onePressMode then
+            aimbotActive = not aimbotActive
+        else
+            local target = findClosestPlayer()
+            if target then
+                aimAt(target)
+            end
+        end
+    end
+    
+    if input.KeyCode == triggerBotKey then
+        triggerBotEnabled = not triggerBotEnabled
+        triggerBotBtn.Text = "Trigger Bot: " .. (triggerBotEnabled and "ON" or "OFF")
+        triggerBotBtn.BackgroundColor3 = triggerBotEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
     end
 end)
 
@@ -518,34 +925,46 @@ end
 local hitboxParts = {}
 
 local function createHitbox(player)
-    if player == LocalPlayer then return end
+    if player == LocalPlayer or hitboxParts[player] then return end
+    
     local character = player.Character
     if not character then return end
     
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") and not hitboxParts[part] then
-            local box = Instance.new("BoxHandleAdornment")
-            box.Name = "ESP_Hitbox"
-            box.Adornee = part
-            box.AlwaysOnTop = true
-            box.ZIndex = 10
-            box.Size = part.Size
-            box.Transparency = 0.7
-            box.Color3 = hitboxColor
-            box.Parent = part
-            hitboxParts[part] = box
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = "ESP_Hitbox"
+    box.Adornee = humanoidRootPart
+    box.AlwaysOnTop = true
+    box.ZIndex = 10
+    box.Size = Vector3.new(4, 6, 4)
+    box.Transparency = 0.7
+    box.Color3 = hitboxColor
+    box.Parent = humanoidRootPart
+    hitboxParts[player] = box
+    
+    local function onCharacterAdded(newCharacter)
+        if hitboxParts[player] then
+            hitboxParts[player]:Destroy()
+            hitboxParts[player] = nil
+        end
+        
+        if showHitboxes then
+            task.wait(1)
+            if player.Character then
+                createHitbox(player)
+            end
         end
     end
+    
+    player.CharacterAdded:Connect(onCharacterAdded)
 end
 
 local function removeHitbox(player)
-    if player.Character then
-        for _, part in ipairs(player.Character:GetDescendants()) do
-            if hitboxParts[part] then
-                hitboxParts[part]:Destroy()
-                hitboxParts[part] = nil
-            end
-        end
+    if hitboxParts[player] then
+        hitboxParts[player]:Destroy()
+        hitboxParts[player] = nil
     end
 end
 
@@ -573,13 +992,22 @@ RunService.Stepped:Connect(function()
     noclipLoop()
     flyLoop()
     
-    if speedHackEnabled and LocalPlayer.Character then
+    if triggerBotEnabled then
+        triggerBot()
+    end
+    
+    if aimbotEnabled and onePressMode and aimbotActive then
+        local target = findClosestPlayer()
+        if target then
+            aimAt(target)
+        end
+    end
+    
+    if LocalPlayer.Character then
         humanoid = humanoid or LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            humanoid.WalkSpeed = 16 * speedMultiplier
+            humanoid.WalkSpeed = speedHackEnabled and (16 * speedMultiplier) or 16
         end
-    elseif humanoid then
-        humanoid.WalkSpeed = 16
     end
     
     if spinBotEnabled and LocalPlayer.Character then
@@ -595,16 +1023,11 @@ RunService.Stepped:Connect(function()
             local hrp = character and character:FindFirstChild("HumanoidRootPart")
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
             
-            if showHitboxes then
-                createHitbox(player)
-            else
-                removeHitbox(player)
-            end
-            
             if hrp and humanoid and humanoid.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                if onScreen then
-                    local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
+                local distance = (hrp.Position - Camera.CFrame.Position).Magnitude
+                
+                if onScreen and (maxESPDistance == 0 or distance <= maxESPDistance) then
                     local scale = 1 / distance * 100
                     local width, height = 25 * scale, 30 * scale
 
@@ -653,12 +1076,38 @@ RunService.Stepped:Connect(function()
         end
     end
     
-    for part, box in pairs(hitboxParts) do
-        if part.Parent and showHitboxes and ESPEnabled then
-            box.Visible = true
-            box.Color3 = hitboxColor
-        else
-            box.Visible = false
+    if showHitboxes and ESPEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if not hitboxParts[player] then
+                    createHitbox(player)
+                else
+                    local character = player.Character
+                    if character then
+                        local hrp = character:FindFirstChild("HumanoidRootPart")
+                        if hrp and hitboxParts[player] then
+                            hitboxParts[player].Adornee = hrp
+                            hitboxParts[player].Visible = true
+                            hitboxParts[player].Color3 = hitboxColor
+                        end
+                    end
+                end
+            end
+        end
+    else
+        for player in pairs(hitboxParts) do
+            if hitboxParts[player] then
+                hitboxParts[player].Visible = false
+            end
         end
     end
+    
+    if aimbotEnabled and not onePressMode and UserInputService:IsKeyDown(aimbotKey) then
+        local target = findClosestPlayer()
+        if target then
+            aimAt(target)
+        end
+    end
+    
+    updateFovCircle()
 end)
