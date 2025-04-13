@@ -690,7 +690,7 @@ end)
 
 local espWhitelistBtn = Instance.new("TextButton", visualsContent)
 espWhitelistBtn.Size = UDim2.new(1, -10, 0, 25)
-espWhitelistBtn.Position = UDim2.new(0, 5, 0, 265)
+espWhitelistBtn.Position = UDim2.new(0, 5, 0, 285)
 espWhitelistBtn.Text = "ESP Whitelist"
 espWhitelistBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 espWhitelistBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -760,34 +760,70 @@ local function createColorOption(parent, name, posY, colorVar, callback)
     return colorPreview
 end
 
-local boxColorPreview = createColorOption(visualsContent, "Box Color", 300, boxColor, function(color)
+local boxColorPreview = createColorOption(visualsContent, "Box Color", 320, boxColor, function(color)
     boxColor = color
 end)
 
-local nameColorPreview = createColorOption(visualsContent, "Name Color", 335, nameColor, function(color)
+local nameColorPreview = createColorOption(visualsContent, "Name Color", 355, nameColor, function(color)
     nameColor = color
 end)
 
-local distColorPreview = createColorOption(visualsContent, "Distance Color", 370, distColor, function(color)
+local distColorPreview = createColorOption(visualsContent, "Distance Color", 390, distColor, function(color)
     distColor = color
 end)
 
-local tracerColorPreview = createColorOption(visualsContent, "Tracer Color", 405, tracerColor, function(color)
+local tracerColorPreview = createColorOption(visualsContent, "Tracer Color", 425, tracerColor, function(color)
     tracerColor = color
 end)
 
-local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 440, hitboxColor, function(color)
+local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 460, hitboxColor, function(color)
     hitboxColor = color
 end)
 
-local function isEnemy(player)
+local function shouldShowESP(player)
     if player == LocalPlayer then return false end
     
     if whitelistEnabled then
-        if aimbotWhitelist[player] ~= nil then return not aimbotWhitelist[player] end
-        if espWhitelist[player] ~= nil then return not espWhitelist[player] end
-        if triggerWhitelist[player] ~= nil then return not triggerWhitelist[player] end
+        return espWhitelist[player] == true
     end
+    
+    if espTargetMode == "All" then return true end
+    if espTargetMode == "Enemies" and isEnemy(player) then return true end
+    if espTargetMode == "Teammates" and isTeammate(player) then return true end
+    
+    return false
+end
+
+local function shouldAimbotTarget(player)
+    if player == LocalPlayer then return false end
+    
+    if whitelistEnabled then
+        return aimbotWhitelist[player] == true
+    end
+    
+    if aimbotTargetMode == "All" then return true end
+    if aimbotTargetMode == "Enemies" and isEnemy(player) then return true end
+    if aimbotTargetMode == "Teammates" and isTeammate(player) then return true end
+    
+    return false
+end
+
+local function shouldTriggerBotTarget(player)
+    if player == LocalPlayer then return false end
+    
+    if whitelistEnabled then
+        return triggerWhitelist[player] == true
+    end
+    
+    if triggerBotTargetMode == "All" then return true end
+    if triggerBotTargetMode == "Enemies" and isEnemy(player) then return true end
+    if triggerBotTargetMode == "Teammates" and isTeammate(player) then return true end
+    
+    return false
+end
+
+local function isEnemy(player)
+    if player == LocalPlayer then return false end
     
     local localTeam = LocalPlayer.Team
     local playerTeam = player.Team
@@ -801,74 +837,6 @@ local function isTeammate(player)
     return not isEnemy(player)
 end
 
-local function isPlayerVisible(player)
-    if not player or not player.Character then return false end
-    
-    local character = player.Character
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local head = character:FindFirstChild("Head")
-    
-    if not humanoid or humanoid.Health <= 0 or not head then return false end
-    
-    local cameraPos = Camera.CFrame.Position
-    local targetPos = head.Position
-    
-    if maxESPDistance > 0 and (targetPos - cameraPos).Magnitude > maxESPDistance then
-        return false
-    end
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
-    
-    local raycastResult = workspace:Raycast(cameraPos, (targetPos - cameraPos).Unit * 1000, raycastParams)
-    
-    return not raycastResult
-end
-
-local function shouldShowESP(player)
-    if player == LocalPlayer then return false end
-    
-    if whitelistEnabled and espWhitelist[player] ~= nil then 
-        return espWhitelist[player] 
-    end
-    
-    if espTargetMode == "All" then return true end
-    if espTargetMode == "Enemies" and isEnemy(player) then return true end
-    if espTargetMode == "Teammates" and isTeammate(player) then return true end
-    
-    return false
-end
-
-local function shouldAimbotTarget(player)
-    if player == LocalPlayer then return false end
-    
-    if whitelistEnabled and aimbotWhitelist[player] ~= nil then 
-        return aimbotWhitelist[player] 
-    end
-    
-    if aimbotTargetMode == "All" then return true end
-    if aimbotTargetMode == "Enemies" and isEnemy(player) then return true end
-    if aimbotTargetMode == "Teammates" and isTeammate(player) then return true end
-    
-    return false
-end
-
-local function shouldTriggerBotTarget(player)
-    if player == LocalPlayer then return false end
-    
-    if whitelistEnabled and triggerWhitelist[player] ~= nil then 
-        return triggerWhitelist[player] 
-    end
-    
-    if triggerBotTargetMode == "All" then return true end
-    if triggerBotTargetMode == "Enemies" and isEnemy(player) then return true end
-    if triggerBotTargetMode == "Teammates" and isTeammate(player) then return true end
-    
-    return false
-end
-
 local function triggerBot()
     if not triggerBotEnabled or tick() - lastTriggerTime < triggerBotDelay then return end
     
@@ -876,7 +844,7 @@ local function triggerBot()
     if target and target.Parent then
         local humanoid = target.Parent:FindFirstChildOfClass("Humanoid")
         local player = Players:GetPlayerFromCharacter(target.Parent)
-        if humanoid and humanoid.Health > 0 and player and player ~= LocalPlayer and shouldTriggerBotTarget(player) then
+        if humanoid and humanoid.Health > 0 and player and shouldTriggerBotTarget(player) then
             lastTriggerTime = tick()
             local mousePos = UserInputService:GetMouseLocation()
             VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
