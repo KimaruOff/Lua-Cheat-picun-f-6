@@ -7,11 +7,13 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
+-- Настройки
 local ESPEnabled = true
 local showBoxes = true
 local showNames = true
 local showDistance = true
 local showTracers = true
+local showHitboxes = true
 local speedHackEnabled = false
 local Rotatespeed = 60
 local speedMultiplier = 2
@@ -49,6 +51,7 @@ local espWhitelist = {}
 local aimbotWhitelist = {}
 local triggerWhitelist = {}
 
+-- Цветовая палитра
 local colorPalette = {
     Color3.fromRGB(255,255,255), Color3.fromRGB(255,0,0),
     Color3.fromRGB(0,255,0), Color3.fromRGB(0,0,255),
@@ -57,6 +60,7 @@ local colorPalette = {
     Color3.fromRGB(0,0,0),
 }
 
+-- Создание GUI
 local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 gui.Name = "Cheat by Kimaru"
 gui.DisplayOrder = 999
@@ -97,6 +101,7 @@ closeButton.TextSize = 18
 closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 closeButton.BorderSizePixel = 0
 
+-- Вкладки
 local tabButtons = Instance.new("Frame", mainFrame)
 tabButtons.Size = UDim2.new(1, 0, 0, 30)
 tabButtons.Position = UDim2.new(0, 0, 0, 0)
@@ -135,6 +140,7 @@ otherContent.Visible = false
 otherContent.ScrollBarThickness = 5
 otherContent.CanvasSize = UDim2.new(0, 0, 0, 200)
 
+-- Анимация кнопок
 local function tweenButton(button)
     local originalSize = button.Size
     local originalPos = button.Position
@@ -157,6 +163,7 @@ local function tweenButton(button)
     end)
 end
 
+-- Создание вкладок
 local function createTabButton(name, index)
     local btn = Instance.new("TextButton", tabButtons)
     btn.Size = UDim2.new(0.25, -2, 1, 0)
@@ -191,6 +198,7 @@ local visualsTabBtn = createTabButton("Visuals", 2)
 local botsTabBtn = createTabButton("Bots", 3)
 local otherTabBtn = createTabButton("Other", 4)
 
+-- Палитра цветов
 local paletteFrame = Instance.new("Frame", gui)
 paletteFrame.Position = UDim2.new(0, 240, 0.5, -150)
 paletteFrame.Size = UDim2.new(0, 180, 0, 120)
@@ -207,6 +215,7 @@ paletteTitle.TextColor3 = Color3.new(1, 1, 1)
 paletteTitle.Font = Enum.Font.SourceSans
 paletteTitle.TextSize = 14
 
+-- Элементы UI
 local function createLabel(parent, text, y)
     local lbl = Instance.new("TextLabel", parent)
     lbl.Size = UDim2.new(1, -10, 0, 20)
@@ -402,6 +411,7 @@ local function createDropdown(parent, name, posY, options, current, callback)
     return dropdown
 end
 
+-- Whitelist меню
 local function createWhitelistMenu(parent, tab)
     local whitelistFrame = Instance.new("Frame", gui)
     whitelistFrame.Position = UDim2.new(0, 420, 0.5, -150)
@@ -545,6 +555,7 @@ local function createWhitelistMenu(parent, tab)
     end
 end
 
+-- Основные функции
 local speedSlider = createSlider(mainContent, "Speed Multiplier", 0, 1, 1000, speedMultiplier, function(value)
     speedMultiplier = value
 end)
@@ -613,6 +624,7 @@ teleportBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ESP функции
 local espObjects = {}
 local hitboxParts = {}
 
@@ -626,6 +638,13 @@ local function clearESP()
     espObjects = {}
 end
 
+local function clearHitboxes()
+    for _, box in pairs(hitboxParts) do
+        if box then box:Destroy() end
+    end
+    hitboxParts = {}
+end
+
 local function closeMenu()
     gui:Destroy()
     ESPEnabled = false
@@ -636,18 +655,8 @@ local function closeMenu()
     flyEnabled = false
     aimbotEnabled = false
     
-    for _, player in pairs(espObjects) do
-        if player.box then player.box:Remove() end
-        if player.name then player.name:Remove() end
-        if player.dist then player.dist:Remove() end
-        if player.tracer then player.tracer:Remove() end
-    end
-    espObjects = {}
-    
-    for part, box in pairs(hitboxParts) do
-        if box then box:Destroy() end
-    end
-    hitboxParts = {}
+    clearESP()
+    clearHitboxes()
 end
 
 closeButton.MouseButton1Click:Connect(function()
@@ -661,6 +670,7 @@ local espBtn = createToggleButton(visualsContent, "ESP", 0, ESPEnabled, function
     ESPEnabled = value
     if not value then
         clearESP()
+        clearHitboxes()
     end
 end)
 
@@ -680,17 +690,31 @@ local tracersBtn = createToggleButton(visualsContent, "Tracers", 140, showTracer
     showTracers = value
 end)
 
-local distanceSlider = createSlider(visualsContent, "Max ESP Distance", 175, 0, 1000, maxESPDistance, function(value)
+-- Новая кнопка для управления хитбоксами
+local hitboxesBtn = createToggleButton(visualsContent, "Hitboxes", 175, showHitboxes, function(value)
+    showHitboxes = value
+    if not value then
+        clearHitboxes()
+    elseif ESPEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                createHitbox(player)
+            end
+        end
+    end
+end)
+
+local distanceSlider = createSlider(visualsContent, "Max ESP Distance", 210, 0, 1000, maxESPDistance, function(value)
     maxESPDistance = value
 end)
 
-local espTargetDropdown = createDropdown(visualsContent, "ESP Targets", 230, {"All", "Enemies", "Teammates"}, espTargetMode, function(value)
+local espTargetDropdown = createDropdown(visualsContent, "ESP Targets", 265, {"All", "Enemies", "Teammates"}, espTargetMode, function(value)
     espTargetMode = value
 end)
 
 local espWhitelistBtn = Instance.new("TextButton", visualsContent)
 espWhitelistBtn.Size = UDim2.new(1, -10, 0, 25)
-espWhitelistBtn.Position = UDim2.new(0, 5, 0, 285)
+espWhitelistBtn.Position = UDim2.new(0, 5, 0, 320)
 espWhitelistBtn.Text = "ESP Whitelist"
 espWhitelistBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 espWhitelistBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -760,26 +784,32 @@ local function createColorOption(parent, name, posY, colorVar, callback)
     return colorPreview
 end
 
-local boxColorPreview = createColorOption(visualsContent, "Box Color", 320, boxColor, function(color)
+local boxColorPreview = createColorOption(visualsContent, "Box Color", 355, boxColor, function(color)
     boxColor = color
 end)
 
-local nameColorPreview = createColorOption(visualsContent, "Name Color", 355, nameColor, function(color)
+local nameColorPreview = createColorOption(visualsContent, "Name Color", 390, nameColor, function(color)
     nameColor = color
 end)
 
-local distColorPreview = createColorOption(visualsContent, "Distance Color", 390, distColor, function(color)
+local distColorPreview = createColorOption(visualsContent, "Distance Color", 425, distColor, function(color)
     distColor = color
 end)
 
-local tracerColorPreview = createColorOption(visualsContent, "Tracer Color", 425, tracerColor, function(color)
+local tracerColorPreview = createColorOption(visualsContent, "Tracer Color", 460, tracerColor, function(color)
     tracerColor = color
 end)
 
-local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 460, hitboxColor, function(color)
+local hitboxColorPreview = createColorOption(visualsContent, "Hitbox Color", 495, hitboxColor, function(color)
     hitboxColor = color
+    for _, box in pairs(hitboxParts) do
+        if box then
+            box.Color3 = color
+        end
+    end
 end)
 
+-- Проверка целей
 local function shouldShowESP(player)
     if player == LocalPlayer then return false end
     
@@ -837,6 +867,7 @@ local function isTeammate(player)
     return not isEnemy(player)
 end
 
+-- Trigger Bot
 local function triggerBot()
     if not triggerBotEnabled or tick() - lastTriggerTime < triggerBotDelay then return end
     
@@ -854,6 +885,7 @@ local function triggerBot()
     end
 end
 
+-- Aimbot элементы
 local aimbotBtn = createToggleButton(botsContent, "Aimbot", 0, aimbotEnabled, function(value)
     aimbotEnabled = value
     fovCircle.Visible = aimbotEnabled and aimbotVisible
@@ -920,6 +952,7 @@ tweenButton(triggerWhitelistBtn)
 local showTriggerWhitelist = createWhitelistMenu(botsContent, "Trigger")
 triggerWhitelistBtn.MouseButton1Click:Connect(showTriggerWhitelist)
 
+-- FOV Circle
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
 fovCircle.Color = Color3.fromRGB(255, 255, 255)
@@ -938,6 +971,7 @@ local fovToggleBtn = createToggleButton(botsContent, "Show FOV Circle", 525, aim
     updateFovCircle()
 end)
 
+-- Настройка клавиш
 local keyInput = Instance.new("TextButton", botsContent)
 keyInput.Size = UDim2.new(1, -10, 0, 25)
 keyInput.Position = UDim2.new(0, 5, 0, 560)
@@ -984,6 +1018,7 @@ triggerKeyInput.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- Другие настройки
 local menuKeyInput = Instance.new("TextButton", otherContent)
 menuKeyInput.Size = UDim2.new(1, -10, 0, 25)
 menuKeyInput.Position = UDim2.new(0, 5, 0, 0)
@@ -1007,6 +1042,7 @@ menuKeyInput.MouseButton1Click:Connect(function()
     end)
 end)
 
+-- Noclip и Fly
 local function noclipLoop()
     if noclipEnabled and LocalPlayer.Character then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
@@ -1053,6 +1089,7 @@ local function flyLoop()
     end
 end
 
+-- Aimbot логика
 local function findClosestPlayer()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -1106,6 +1143,7 @@ local function aimAt(target)
     end
 end
 
+-- Управление меню
 local function toggleMenu()
     menuVisible = not menuVisible
     if menuVisible then
@@ -1123,6 +1161,7 @@ local function toggleMenu()
     paletteFrame.Visible = false
 end
 
+-- ESP функции
 local function createESP(player)
     if player == LocalPlayer then return end
     local box = Drawing.new("Square")
@@ -1185,7 +1224,7 @@ local function createHitbox(player)
             hitboxParts[player] = nil
         end
         
-        if ESPEnabled then
+        if ESPEnabled and showHitboxes then
             task.wait(1)
             if player.Character then
                 createHitbox(player)
@@ -1203,16 +1242,17 @@ local function removeHitbox(player)
     end
 end
 
+-- Инициализация ESP и хитбоксов
 for _, player in ipairs(Players:GetPlayers()) do
     createESP(player)
-    if ESPEnabled then
+    if ESPEnabled and showHitboxes then
         createHitbox(player)
     end
 end
 
 Players.PlayerAdded:Connect(function(player)
     createESP(player)
-    if ESPEnabled then
+    if ESPEnabled and showHitboxes then
         createHitbox(player)
     end
 end)
@@ -1222,6 +1262,7 @@ Players.PlayerRemoving:Connect(function(player)
     removeHitbox(player)
 end)
 
+-- Основной цикл
 local humanoid
 RunService.Stepped:Connect(function()
     noclipLoop()
@@ -1290,10 +1331,10 @@ RunService.Stepped:Connect(function()
                         esp.tracer.Visible = false
                     end
                     
-                    if not hitboxParts[player] then
+                    if showHitboxes and not hitboxParts[player] then
                         createHitbox(player)
-                    else
-                        hitboxParts[player].Visible = true
+                    elseif hitboxParts[player] then
+                        hitboxParts[player].Visible = showHitboxes
                         hitboxParts[player].Color3 = hitboxColor
                     end
                 else
@@ -1342,6 +1383,7 @@ RunService.Stepped:Connect(function()
     updateFovCircle()
 end)
 
+-- Обработка ввода
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == toggleMenuKey then
         toggleMenu()
@@ -1369,5 +1411,12 @@ UserInputService.InputBegan:Connect(function(input)
         triggerBotEnabled = not triggerBotEnabled
         triggerBotBtn.Text = "Trigger Bot: " .. (triggerBotEnabled and "ON" or "OFF")
         triggerBotBtn.BackgroundColor3 = triggerBotEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+    end
+end)
+
+-- Очистка при выходе
+game:GetService("UserInputService").WindowFocusReleased:Connect(function()
+    if gui then
+        gui:Destroy()
     end
 end)
