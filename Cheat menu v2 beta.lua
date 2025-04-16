@@ -9,8 +9,8 @@ local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 
 local Window = Fluent:CreateWindow({
-    Title = "Picun f-6",
-    SubTitle = "By Kimaru",
+    Title = "Picun f-6 V2 Beta",
+    SubTitle = "By Kimaru (@IlIlIlIIlIlIlIlIIllIIIllIIllIIlI)✨✨✨",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = true,
